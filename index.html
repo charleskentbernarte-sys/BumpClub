@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BumpClub - Campus Network & Club Portal</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel Compiler -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #040711;
+      color: #f3f4f6;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Map grid pattern */
+    .map-grid-bg {
+      background-color: #0d1527;
+      background-image: radial-gradient(#1e293b 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    /* Phone frame shadow in mobile preview mode */
+    .phone-shadow {
+      box-shadow: 0 0 50px -10px rgba(14, 165, 233, 0.25), 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <div id="root" class="flex-1 flex flex-col w-full"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    /* =========================================================================
+       PRE-POPULATED DEMO ACCOUNTS
+       ========================================================================= */
+    const DEMO_ACCOUNTS = [
+      {
+        id: 'student-1',
+        email: 'student@laverdad.edu.ph',
+        role: 'student',
+        roleTitle: 'Ordinary Student',
+        name: 'Maria Santos',
+        idNumber: '2026-00412',
+        course: 'BS Information Technology',
+        badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+        icon: '🎓',
+        desc: 'Accesses 2D campus map, views available clubs directory, takes AI survey, & chats with AI Assistant.'
+      },
+      {
+        id: 'officer-1',
+        email: 'officer@laverdad.edu.ph',
+        role: 'officer',
+        roleTitle: 'Club Officer',
+        name: 'Bro. Joshua Cruz',
+        idNumber: '2025-00188',
+        course: 'BS Computer Science • IT Club Officer',
+        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        icon: '🛡️',
+        desc: 'Manages incoming membership applications, reviews student details & approves requests.'
+      },
+      {
+        id: 'teacher-1',
+        email: 'teacher@laverdad.edu.ph',
+        role: 'teacher',
+        roleTitle: 'Teacher / Faculty Adviser',
+        name: 'Prof. Gabriel Reyes',
+        idNumber: 'FAC-2022-89',
+        course: 'Faculty of Information Technology',
+        badgeColor: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+        icon: '👨‍🏫',
+        desc: 'Oversees campus club activities, approves faculty advisership, & monitors rosters.'
+      }
+    ];
+
+    /* =========================================================================
+       SURVEY QUESTIONNAIRE DATA
+       ========================================================================= */
+    const SURVEY_QUESTIONS = [
+      {
+        id: 'q1',
+        title: 'What fuels your passion on campus?',
+        subtitle: 'Select all activities that excite you most',
+        options: [
+          { id: 'tech', label: 'Coding, AI & Robotics', icon: '🤖', clubCategory: 'Tech & Engineering' },
+          { id: 'media', label: 'Broadcasting, Video & Journalism', icon: '🎥', clubCategory: 'Media & Arts' },
+          { id: 'spiritual', label: 'Bible Studies & Moral Outreach', icon: '📖', clubCategory: 'Spiritual & Outreach' },
+          { id: 'sports', label: 'Varsity Athletics & Fitness', icon: '⚽', clubCategory: 'Sports & Fitness' }
+        ]
+      },
+      {
+        id: 'q2',
+        title: 'What type of environment do you prefer?',
+        subtitle: 'How do you like to spend your extracurricular time?',
+        options: [
+          { id: 'lab', label: 'Computer Labs & Coding Sprints', icon: '💻' },
+          { id: 'studio', label: 'Creative Media Studios & Filming', icon: '🎙️' },
+          { id: 'fellowship', label: 'Community Gatherings & AVR Centers', icon: '🤝' },
+          { id: 'gym', label: 'Outdoor Courts & Gymnasium', icon: '🏆' }
+        ]
+      }
+    ];
+
+    /* =========================================================================
+       FULL SCHOOL CLUBS DIRECTORY DATA
+       ========================================================================= */
+    const SCHOOL_CLUBS = [
+      {
+        id: 'robotics',
+        name: 'LVCC IT Society & AI Club',
+        match: '98%',
+        room: 'Academic Bldg • Room 304',
+        officer: 'Bro. Joshua Cruz (Officer)',
+        icon: '🤖',
+        color: '#38bdf8',
+        mapPos: { x: 28, y: 32 },
+        description: 'Software development, robotics, mobile app prototypes, and hackathons.',
+        category: 'Tech & Engineering',
+        schedule: 'Tues & Thurs • 4:00 PM',
+        openPositions: 'Member, Mobile Dev Lead, Web Designer',
+        requirements: 'Open to all IT/CS and enthusiastic students.'
+      },
+      {
+        id: 'founders',
+        name: 'Media & Mass Comm Guild',
+        match: '91%',
+        room: 'Media Center • Studio A',
+        officer: 'Sis. Rachel Diaz (MassComm)',
+        icon: '🎥',
+        color: '#f59e0b',
+        mapPos: { x: 72, y: 32 },
+        description: 'Campus broadcasting, video editing, photography, and school journalism.',
+        category: 'Media & Arts',
+        schedule: 'Wednesdays • 3:30 PM',
+        openPositions: 'Camera Operator, Video Editor, News Writer',
+        requirements: 'Interest in digital content creation and storytelling.'
+      },
+      {
+        id: 'cybersec',
+        name: 'Christian Youth Fellowship',
+        match: '87%',
+        room: 'Main Building • AVR Center',
+        officer: 'Prof. Gabriel Reyes (Adviser)',
+        icon: '📖',
+        color: '#10b981',
+        mapPos: { x: 30, y: 70 },
+        description: 'Moral values outreach, spiritual fellowship, Bible studies, and community service.',
+        category: 'Spiritual & Outreach',
+        schedule: 'Fridays • 5:00 PM',
+        openPositions: 'Outreach Volunteer, Music Ministry Lead, Facilitator',
+        requirements: 'Willingness to serve and participate in spiritual growth.'
+      },
+      {
+        id: 'sports',
+        name: 'LVCC Athletics & Sports Club',
+        match: '84%',
+        room: 'Covered Court • Gymnasium',
+        officer: 'Bro. Kevin Castro (PE Dept)',
+        icon: '⚽',
+        color: '#ec4899',
+        mapPos: { x: 70, y: 70 },
+        description: 'Basketball leagues, badminton, volleyball varsity training, and fitness.',
+        category: 'Sports & Fitness',
+        schedule: 'Mon & Wed • 4:30 PM',
+        openPositions: 'Varsity Player, Event Coordinator, Referee Assistant',
+        requirements: 'Good sportsmanship and physical activity readiness.'
+      },
+      {
+        id: 'arts',
+        name: 'LVCC Visual Arts & Creative Guild',
+        match: '80%',
+        room: 'Fine Arts Studio • Room 102',
+        officer: 'Sis. Hannah Flores',
+        icon: '🎨',
+        color: '#a855f7',
+        mapPos: { x: 50, y: 20 },
+        description: 'Traditional painting, digital illustration, graphic design, and campus art exhibits.',
+        category: 'Media & Arts',
+        schedule: 'Tuesdays • 4:00 PM',
+        openPositions: 'Graphic Artist, Exhibition Handler',
+        requirements: 'Passion for visual design and artwork.'
+      },
+      {
+        id: 'music',
+        name: 'LVCC Harmonies Music Club',
+        match: '78%',
+        room: 'Music Room • Annex Hall',
+        officer: 'Bro. David Santos',
+        icon: '🎵',
+        color: '#f43f5e',
+        mapPos: { x: 80, y: 50 },
+        description: 'Acoustic performances, choir, instrument training, and campus event bands.',
+        category: 'Media & Arts',
+        schedule: 'Thursdays • 5:00 PM',
+        openPositions: 'Vocalist, Guitarist, Keyboardist, Drummer',
+        requirements: 'Eagerness to play music or sing in events.'
+      }
+    ];
+
+    function App() {
+      // Auth & Role States
+      const [currentUser, setCurrentUser] = useState(null);
+      const [loginRole, setLoginRole] = useState('student');
+      const [loginEmail, setLoginEmail] = useState('student@laverdad.edu.ph');
+      const [loginPassword, setLoginPassword] = useState('password123');
+
+      // Questionnaire / Survey State
+      const [showSurvey, setShowSurvey] = useState(false);
+      const [surveyStep, setSurveyStep] = useState(0);
+      const [selectedInterests, setSelectedInterests] = useState(['tech']);
+      const [recommendedClub, setRecommendedClub] = useState(null);
+
+      // Display Mode: Auto/Desktop vs Simulated Phone Mockup
+      const [deviceFrameMode, setDeviceFrameMode] = useState('responsive'); // 'responsive' | 'mobile-mockup'
+
+      // Secret Back-Stage Room State
+      const [viewMode, setViewMode] = useState('app'); // 'app' | 'wizard'
+      const [wizardUnlocked, setWizardUnlocked] = useState(false);
+      const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+      const [passcode, setPasscode] = useState('');
+      const tapCountRef = useRef(0);
+      const tapTimerRef = useRef(null);
+
+      // Main App & Navigation States
+      const [studentTab, setStudentTab] = useState('map'); // 'map' | 'clubs' | 'dashboard'
+      const [categoryFilter, setCategoryFilter] = useState('All');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [clubs, setClubs] = useState(SCHOOL_CLUBS);
+      const [selectedClub, setSelectedClub] = useState(SCHOOL_CLUBS[0]);
+      const [targetClub, setTargetClub] = useState(null);
+      const [avatarPos, setAvatarPos] = useState({ x: 50, y: 50 });
+      const [registrations, setRegistrations] = useState([
+        {
+          id: 'reg-101',
+          clubId: 'robotics',
+          clubName: 'LVCC IT Society & AI Club',
+          applicantName: 'Maria Santos',
+          studentId: '2026-00412',
+          course: 'BS Information Technology',
+          roleType: 'Ordinary Student',
+          status: 'Pending',
+          time: '10:15 AM'
+        }
+      ]);
+      const [toastMsg, setToastMsg] = useState(null);
+
+      // AI BOT ASSISTANT CHAT STATE
+      const [showChatBot, setShowChatBot] = useState(false);
+      const [chatMessages, setChatMessages] = useState([
+        {
+          id: 1,
+          sender: 'bot',
+          text: 'Hi there! 👋 I am your LVCC BumpClub AI Assistant. Ask me anything about our campus clubs, schedules, rooms, or how to join!'
+        }
+      ]);
+      const [chatInput, setChatInput] = useState('');
+      const chatEndRef = useRef(null);
+
+      // System Logs
+      const [auditLogs, setAuditLogs] = useState([
+        { id: 1, time: '10:00 AM', event: 'Authentication portal initialized', type: 'system' }
+      ]);
+
+      // Registration Modal State
+      const [showRegModal, setShowRegModal] = useState(false);
+      const [regClub, setRegClub] = useState(null);
+
+      const triggerToast = (msg) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3500);
+      };
+
+      const addAuditLog = (event, type = 'user') => {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setAuditLogs(prev => [{ id: Date.now(), time, event, type }, ...prev]);
+      };
+
+      // Auto-scroll AI chat
+      useEffect(() => {
+        if (showChatBot) {
+          chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, [chatMessages, showChatBot]);
+
+      // AI Chatbot Logic
+      const handleSendMessage = (e) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+
+        const userMsg = chatInput.trim();
+        const userMsgObj = { id: Date.now(), sender: 'user', text: userMsg };
+        setChatMessages(prev => [...prev, userMsgObj]);
+        setChatInput('');
+
+        setTimeout(() => {
+          let botReply = "I can help you with information on LVCC clubs! Try asking about 'IT Society', 'Media Guild', 'Christian Youth Fellowship', or 'Sports Club'.";
+          const query = userMsg.toLowerCase();
+
+          if (query.includes('it') || query.includes('robotics') || query.includes('ai') || query.includes('tech') || query.includes('code')) {
+            botReply = "🤖 **LVCC IT Society & AI Club**: Located in Academic Bldg (Room 304). Meets Tuesdays & Thursdays at 4:00 PM. Focuses on software dev, AI, and hackathons!";
+          } else if (query.includes('media') || query.includes('video') || query.includes('photo') || query.includes('journalism')) {
+            botReply = "🎥 **Media & Mass Comm Guild**: Located in Media Center (Studio A). Meets Wednesdays at 3:30 PM. Great for camera operators, broadcasting, and news editing!";
+          } else if (query.includes('spiritual') || query.includes('bible') || query.includes('fellowship') || query.includes('christian')) {
+            botReply = "📖 **Christian Youth Fellowship**: Located in Main Building AVR Center. Meets Fridays at 5:00 PM. Focuses on Bible studies, outreach, and moral values!";
+          } else if (query.includes('sports') || query.includes('basketball') || query.includes('gym') || query.includes('fitness')) {
+            botReply = "⚽ **LVCC Athletics & Sports Club**: Located in Covered Court Gymnasium. Meets Mon & Wed at 4:30 PM. Offers basketball, volleyball, and varsity training!";
+          } else if (query.includes('join') || query.includes('apply') || query.includes('register')) {
+            botReply = "📝 To join any club, go to the **'Browse Clubs'** section or click on a club pin on the **Map**, then select **'Register to Join'**! Your request will be sent to the club officer.";
+          } else if (query.includes('art') || query.includes('paint') || query.includes('draw')) {
+            botReply = "🎨 **LVCC Visual Arts Guild**: Room 102 Fine Arts Studio. Meets Tuesdays at 4:00 PM for painting, digital drawing, and art exhibits!";
+          } else if (query.includes('music') || query.includes('sing') || query.includes('band')) {
+            botReply = "🎵 **LVCC Harmonies Music Club**: Annex Hall Music Room. Meets Thursdays at 5:00 PM for acoustic jams, vocal coaching, and choir!";
+          }
+
+          setChatMessages(prev => [...prev, { id: Date.now() + 1, sender: 'bot', text: botReply }]);
+        }, 500);
+      };
+
+      const selectLoginRole = (roleKey) => {
+        setLoginRole(roleKey);
+        const matchedDemo = DEMO_ACCOUNTS.find(a => a.role === roleKey);
+        if (matchedDemo) {
+          setLoginEmail(matchedDemo.email);
+        }
+      };
+
+      const handleLoginSubmit = (e) => {
+        e.preventDefault();
+        const matchedDemo = DEMO_ACCOUNTS.find(a => a.role === loginRole) || {
+          id: `user-${Date.now()}`,
+          email: loginEmail,
+          role: loginRole,
+          roleTitle: loginRole === 'teacher' ? 'Teacher / Adviser' : loginRole === 'officer' ? 'Club Officer' : 'Ordinary Student',
+          name: loginEmail.split('@')[0],
+          idNumber: '2026-99999',
+          course: 'Campus Member',
+          badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+          icon: loginRole === 'teacher' ? '👨‍🏫' : loginRole === 'officer' ? '🛡️' : '🎓'
+        };
+
+        setCurrentUser(matchedDemo);
+        
+        if (matchedDemo.role === 'student') {
+          setShowSurvey(true);
+          setSurveyStep(0);
+        } else {
+          setShowSurvey(false);
+        }
+
+        triggerToast(`Welcome, ${matchedDemo.name}! Logged in as ${matchedDemo.roleTitle}.`);
+        addAuditLog(`User '${matchedDemo.name}' logged in as [${matchedDemo.roleTitle}]`, 'auth');
+      };
+
+      const quickLogin = (account) => {
+        setLoginRole(account.role);
+        setLoginEmail(account.email);
+        setCurrentUser(account);
+
+        if (account.role === 'student') {
+          setShowSurvey(true);
+          setSurveyStep(0);
+        } else {
+          setShowSurvey(false);
+        }
+
+        triggerToast(`Quick Login Successful: ${account.name} (${account.roleTitle})`);
+        addAuditLog(`Quick Login activated for ${account.name} (${account.roleTitle})`, 'auth');
+      };
+
+      const finishSurvey = () => {
+        let bestClub = SCHOOL_CLUBS[0];
+        if (selectedInterests.includes('media')) bestClub = SCHOOL_CLUBS[1];
+        else if (selectedInterests.includes('spiritual')) bestClub = SCHOOL_CLUBS[2];
+        else if (selectedInterests.includes('sports')) bestClub = SCHOOL_CLUBS[3];
+
+        setRecommendedClub(bestClub);
+        setSelectedClub(bestClub);
+        setShowSurvey(false);
+
+        setClubs(prev => prev.map(c => {
+          if (c.id === bestClub.id) return { ...c, match: '99%' };
+          return { ...c, match: `${Math.floor(Math.random() * 15 + 75)}%` };
+        }));
+
+        triggerToast(`🎯 AI Match Complete! Best fit: ${bestClub.name}`);
+        addAuditLog(`Student completed AI questionnaire. Recommended: ${bestClub.name}`, 'survey');
+      };
+
+      const handleLogout = () => {
+        setCurrentUser(null);
+        setViewMode('app');
+        setShowSurvey(false);
+        triggerToast("Logged out successfully.");
+        addAuditLog("User logged out", "auth");
+      };
+
+      const handleSecretHeaderTap = () => {
+        tapCountRef.current += 1;
+        if (tapCountRef.current === 1) {
+          tapTimerRef.current = setTimeout(() => {
+            tapCountRef.current = 0;
+          }, 1500);
+        } else if (tapCountRef.current >= 3) {
+          clearTimeout(tapTimerRef.current);
+          tapCountRef.current = 0;
+          setShowPasscodeModal(true);
+        }
+      };
+
+      const handlePasscodeSubmit = (e) => {
+        e.preventDefault();
+        if (passcode === '1010' || passcode === '1234') {
+          setWizardUnlocked(true);
+          setShowPasscodeModal(false);
+          setViewMode('wizard');
+          setPasscode('');
+          triggerToast("🔑 Back-Stage Control Room Unlocked!");
+          addAuditLog("Operator authorized via secret passcode override", "auth");
+        } else {
+          triggerToast("❌ Incorrect Operator Code!");
+          setPasscode('');
+        }
+      };
+
+      const moveAvatar2D = (dx, dy) => {
+        setAvatarPos(prev => ({
+          x: Math.max(8, Math.min(92, prev.x + dx)),
+          y: Math.max(8, Math.min(92, prev.y + dy))
+        }));
+        addAuditLog(`Moved avatar to (${avatarPos.x.toFixed(0)}%, ${avatarPos.y.toFixed(0)}%)`, 'movement');
+      };
+
+      const setWayfindingTarget = (club) => {
+        setTargetClub(club);
+        setSelectedClub(club);
+        setStudentTab('map');
+        triggerToast(`📍 Path drawn on map to ${club.room}`);
+        addAuditLog(`Set wayfinding path to ${club.name}`, 'navigation');
+      };
+
+      const submitRegForm = (e) => {
+        e.preventDefault();
+        const newReg = {
+          id: `reg-${Date.now()}`,
+          clubId: regClub.id,
+          clubName: regClub.name,
+          applicantName: currentUser.name,
+          studentId: currentUser.idNumber,
+          course: currentUser.course,
+          roleType: currentUser.roleTitle,
+          status: 'Pending',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        setRegistrations(prev => [newReg, ...prev]);
+        setShowRegModal(false);
+        triggerToast(`✅ Application sent to ${regClub.name} Officer!`);
+        addAuditLog(`Application submitted by ${currentUser.name} for ${regClub.name}`, 'woz');
+      };
+
+      const reviewApplication = (id, status) => {
+        setRegistrations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+        triggerToast(`Application marked as ${status}!`);
+        addAuditLog(`Application #${id} set to ${status} by ${currentUser.name}`, 'woz');
+      };
+
+      const filteredClubs = clubs.filter(c => {
+        const matchesCategory = categoryFilter === 'All' || c.category === categoryFilter;
+        const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              c.description.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+      });
+
+      /* =========================================================================
+         SCREEN 1: LOGIN PAGE (RESPONSIVE WEB DESIGN)
+         ========================================================================= */
+      if (!currentUser) {
+        return (
+          <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-12 bg-slate-950">
+            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+              
+              {/* Left Side Hero Banner (PC View) */}
+              <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-sky-950 p-8 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
+                <div className="space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-400 to-amber-400 p-0.5 shadow-xl flex items-center justify-center">
+                    <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-2xl">
+                      ⚡
+                    </div>
+                  </div>
+                  <h1 className="text-3xl font-black text-white tracking-tight">Bump<span className="text-amber-400">Club</span> Portal</h1>
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    Welcome to the La Verdad Christian College Campus Network. Discover clubs, navigate with 2D wayfinding maps, and connect with AI assistance.
+                  </p>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-800/80 space-y-2">
+                  <div className="flex items-center space-x-2 text-xs text-sky-400 font-bold">
+                    <span>✨ Features Included:</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+                    <div className="flex items-center space-x-1.5"><span>•</span><span>2D Campus Map</span></div>
+                    <div className="flex items-center space-x-1.5"><span>•</span><span>Full Club Directory</span></div>
+                    <div className="flex items-center space-x-1.5"><span>•</span><span>AI Club Bot Assistant</span></div>
+                    <div className="flex items-center space-x-1.5"><span>•</span><span>Officer Approvals</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side Login Form */}
+              <div className="p-6 sm:p-8 space-y-6 flex flex-col justify-center">
+                
+                {/* Role Identifier Selector */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider block">
+                    Select Your Campus Role:
+                  </label>
+
+                  <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => selectLoginRole('student')}
+                      className={`py-2 px-1 rounded-xl font-extrabold text-[11px] flex flex-col sm:flex-row items-center justify-center space-x-1 transition ${
+                        loginRole === 'student' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-base">🎓</span>
+                      <span>Student</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => selectLoginRole('officer')}
+                      className={`py-2 px-1 rounded-xl font-extrabold text-[11px] flex flex-col sm:flex-row items-center justify-center space-x-1 transition ${
+                        loginRole === 'officer' ? 'bg-amber-400 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-base">🛡️</span>
+                      <span>Officer</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => selectLoginRole('teacher')}
+                      className={`py-2 px-1 rounded-xl font-extrabold text-[11px] flex flex-col sm:flex-row items-center justify-center space-x-1 transition ${
+                        loginRole === 'teacher' ? 'bg-sky-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-base">👨‍🏫</span>
+                      <span>Teacher</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Login Form */}
+                <form onSubmit={handleLoginSubmit} className="space-y-3">
+                  <div>
+                    <label className="text-slate-400 font-bold text-xs block mb-1">Campus Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      value={loginEmail}
+                      onChange={e => setLoginEmail(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      placeholder="user@laverdad.edu.ph"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-slate-400 font-bold text-xs block mb-1">Password</label>
+                    <input
+                      type="password"
+                      required
+                      value={loginPassword}
+                      onChange={e => setLoginPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      placeholder="••••••••"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs py-3.5 rounded-xl shadow-lg transition transform active:scale-95 mt-2"
+                  >
+                    Log In & Launch App
+                  </button>
+                </form>
+
+                {/* Quick Demo Logins */}
+                <div className="pt-2 border-t border-slate-800 space-y-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    ⚡ Quick Demo One-Click Logins:
+                  </span>
+
+                  <div className="space-y-1.5">
+                    {DEMO_ACCOUNTS.map(acc => (
+                      <button
+                        key={acc.id}
+                        onClick={() => quickLogin(acc)}
+                        className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 p-2 sm:p-2.5 rounded-xl text-left flex items-center justify-between transition group"
+                      >
+                        <div className="flex items-center space-x-2.5">
+                          <span className="text-lg">{acc.icon}</span>
+                          <div>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="font-extrabold text-xs text-white">{acc.name}</span>
+                              <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${acc.badgeColor}`}>
+                                {acc.roleTitle}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400">{acc.email}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-slate-500 group-hover:text-amber-400 font-bold">Sign In ›</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /* =========================================================================
+         SCREEN 2: QUESTIONNAIRE / SURVEY SCREEN
+         ========================================================================= */
+      if (showSurvey) {
+        const currentQ = SURVEY_QUESTIONS[surveyStep];
+        return (
+          <div className="flex-1 flex items-center justify-center p-4 bg-slate-950">
+            <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 text-slate-100 shadow-2xl">
+              
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div>
+                  <span className="text-[10px] font-black text-sky-400 uppercase tracking-wider">AI Club Recommendation System</span>
+                  <h2 className="text-lg font-black text-white">Find Your Best Club Fit</h2>
+                </div>
+                <button
+                  onClick={() => setShowSurvey(false)}
+                  className="text-xs font-bold text-slate-400 hover:text-white"
+                >
+                  Skip ✕
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono font-bold text-amber-400">Step {surveyStep + 1} of {SURVEY_QUESTIONS.length}</span>
+                <h3 className="text-lg font-extrabold text-white">{currentQ.title}</h3>
+                <p className="text-xs text-slate-400">{currentQ.subtitle}</p>
+              </div>
+
+              <div className="space-y-2.5">
+                {currentQ.options.map(opt => {
+                  const isSelected = selectedInterests.includes(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        setSelectedInterests(prev => isSelected ? prev.filter(i => i !== opt.id) : [...prev, opt.id]);
+                      }}
+                      className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between transition ${
+                        isSelected
+                          ? 'bg-sky-500/20 border-sky-400 text-white shadow-md'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{opt.icon}</span>
+                        <div>
+                          <span className="font-extrabold text-sm text-white block">{opt.label}</span>
+                          <span className="text-[10px] text-slate-400">{opt.clubCategory}</span>
+                        </div>
+                      </div>
+                      {isSelected && <span className="text-sky-400 font-bold text-sm">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                {surveyStep > 0 && (
+                  <button
+                    onClick={() => setSurveyStep(s => s - 1)}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs px-5 py-3 rounded-xl"
+                  >
+                    Back
+                  </button>
+                )}
+
+                {surveyStep < SURVEY_QUESTIONS.length - 1 ? (
+                  <button
+                    onClick={() => setSurveyStep(s => s + 1)}
+                    className="flex-1 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs py-3 rounded-xl shadow-lg"
+                  >
+                    Next Question ›
+                  </button>
+                ) : (
+                  <button
+                    onClick={finishSurvey}
+                    className="flex-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs py-3 rounded-xl shadow-lg"
+                  >
+                    Generate AI Club Recommendation
+                  </button>
+                )}
+              </div>
+
+            </div>
+          </div>
+        );
+      }
+
+      /* =========================================================================
+         SCREEN 3: MAIN CAMPUS WEB APPLICATION (RESPONSIVE PC & MOBILE LAYOUT)
+         ========================================================================= */
+      
+      // Outer Content Render Function (shared across desktop & mobile frame view)
+      const renderMainContent = () => (
+        <div className="flex-1 flex flex-col md:flex-row gap-6 p-4 sm:p-6 max-w-7xl mx-auto w-full">
+          
+          {/* PC SIDEBAR / MOBILE NAV TABS */}
+          <div className="w-full md:w-64 flex flex-col gap-4 shrink-0">
+            
+            {/* Navigation Options */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-1">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-3 py-1 block">
+                Main Navigation
+              </span>
+
+              <button
+                onClick={() => setStudentTab('map')}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                  studentTab === 'map' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-base">🗺️</span>
+                <span>2D Campus Map</span>
+              </button>
+
+              <button
+                onClick={() => setStudentTab('clubs')}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                  studentTab === 'clubs' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-base">🏛️</span>
+                <span>Browse All Clubs</span>
+              </button>
+
+              {(currentUser.role === 'officer' || currentUser.role === 'teacher') && (
+                <button
+                  onClick={() => setStudentTab('dashboard')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    studentTab === 'dashboard' ? 'bg-amber-400 text-slate-950 shadow' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-base">🛡️</span>
+                    <span>Approvals</span>
+                  </div>
+                  <span className="bg-slate-950/40 text-current px-2 py-0.5 rounded-full text-[10px]">
+                    {registrations.filter(r => r.status === 'Pending').length}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Recommended Club Summary Widget */}
+            {recommendedClub && (
+              <div className="bg-gradient-to-br from-amber-500/10 via-slate-900 to-sky-500/10 border border-amber-500/30 p-4 rounded-2xl space-y-2">
+                <span className="text-[9px] font-black text-amber-400 uppercase tracking-wider">🎯 AI Recommended Club</span>
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-2xl">{recommendedClub.icon}</span>
+                  <div>
+                    <h4 className="font-extrabold text-xs text-white leading-tight">{recommendedClub.name}</h4>
+                    <p className="text-[10px] text-slate-400">{recommendedClub.room}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setWayfindingTarget(recommendedClub)}
+                  className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] py-2 rounded-xl mt-1 shadow"
+                >
+                  Show Map Path
+                </button>
+              </div>
+            )}
+
+            {/* AI Assistant Quick Launcher Card */}
+            <div className="hidden md:block bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-2xl">🤖</span>
+                <div>
+                  <h4 className="font-extrabold text-xs text-white">LVCC AI Assistant</h4>
+                  <span className="text-[9px] text-emerald-400 font-semibold">● Ready to help</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400">Ask questions about schedules, club officers, room locations, or requirements.</p>
+              <button
+                onClick={() => setShowChatBot(prev => !prev)}
+                className="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs py-2 rounded-xl transition shadow"
+              >
+                {showChatBot ? 'Close AI Chat' : 'Open AI Chat Assistant'}
+              </button>
+            </div>
+
+          </div>
+
+          {/* MAIN CONTENT AREA */}
+          <div className="flex-1 flex flex-col space-y-4 min-w-0">
+
+            {/* TAB 1: 2D MAP VIEW */}
+            {studentTab === 'map' && (
+              <div className="space-y-4">
+                
+                {/* 2D MAP CANVAS */}
+                <div className="relative rounded-3xl overflow-hidden border border-slate-800 bg-[#0d1527] h-80 sm:h-96 map-grid-bg shadow-2xl p-2">
+
+                  <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <rect x="0" y="44" width="100" height="12" fill="#1e293b" />
+                    <rect x="44" y="0" width="12" height="100" fill="#1e293b" />
+                    <circle cx="50" cy="50" r="12" fill="#0f172a" stroke="#334155" strokeWidth="1.5" />
+                    <circle cx="50" cy="50" r="4" fill="#38bdf8" opacity="0.3" />
+
+                    {targetClub && (
+                      <line
+                        x1={avatarPos.x}
+                        y1={avatarPos.y}
+                        x2={targetClub.mapPos.x}
+                        y2={targetClub.mapPos.y}
+                        stroke="#f59e0b"
+                        strokeWidth="2.5"
+                        strokeDasharray="3,3"
+                      />
+                    )}
+
+                    <g>
+                      <rect x="10" y="10" width="34" height="28" rx="3" fill="#101b33" stroke="#38bdf8" strokeWidth="1" />
+                      <text x="27" y="27" fill="#94a3b8" fontSize="4" fontWeight="bold" textAnchor="middle">Academic Bldg</text>
+                    </g>
+
+                    <g>
+                      <rect x="56" y="10" width="34" height="28" rx="3" fill="#101b33" stroke="#f59e0b" strokeWidth="1" />
+                      <text x="73" y="27" fill="#94a3b8" fontSize="4" fontWeight="bold" textAnchor="middle">Media Center</text>
+                    </g>
+
+                    <g>
+                      <rect x="10" y="62" width="34" height="28" rx="3" fill="#101b33" stroke="#10b981" strokeWidth="1" />
+                      <text x="27" y="79" fill="#94a3b8" fontSize="4" fontWeight="bold" textAnchor="middle">AVR Center</text>
+                    </g>
+
+                    <g>
+                      <rect x="56" y="62" width="34" height="28" rx="3" fill="#101b33" stroke="#ec4899" strokeWidth="1" />
+                      <text x="73" y="79" fill="#94a3b8" fontSize="4" fontWeight="bold" textAnchor="middle">Gymnasium</text>
+                    </g>
+                  </svg>
+
+                  {/* Pins */}
+                  {clubs.map(club => {
+                    const isSelected = selectedClub?.id === club.id;
+                    return (
+                      <div
+                        key={club.id}
+                        onClick={() => setSelectedClub(club)}
+                        style={{ left: `${club.mapPos.x}%`, top: `${club.mapPos.y}%` }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition transform hover:scale-125 flex flex-col items-center z-10"
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-xl border ${
+                            isSelected ? 'scale-125 ring-4 ring-amber-400/50 border-amber-300' : 'border-slate-700'
+                          }`}
+                          style={{ backgroundColor: club.color }}
+                        >
+                          {club.icon}
+                        </div>
+                        <span className="text-[9px] font-extrabold text-white bg-slate-950/90 px-1.5 py-0.5 rounded mt-0.5 whitespace-nowrap border border-slate-800">
+                          {club.name.split(' ')[0]}
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                  {/* Avatar Pin */}
+                  <div
+                    style={{ left: `${avatarPos.x}%`, top: `${avatarPos.y}%` }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 z-20 flex items-center justify-center pointer-events-none"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-rose-500 border-2 border-white shadow-xl flex items-center justify-center text-xs animate-pulse">
+                      📍
+                    </div>
+                  </div>
+
+                  <div className="absolute top-3 left-3 bg-slate-950/90 border border-slate-800 px-3 py-1 rounded-full text-xs font-bold text-slate-300">
+                    🗺️ 2D Campus Wayfinding Map
+                  </div>
+
+                  {/* D-Pad Controls */}
+                  <div className="absolute bottom-3 right-3 grid grid-cols-3 gap-1 w-24 h-24 bg-slate-950/90 p-1.5 rounded-2xl border border-slate-800 shadow-2xl">
+                    <div />
+                    <button onClick={() => moveAvatar2D(0, -10)} className="bg-slate-900 active:bg-sky-600 border border-slate-700 rounded-lg text-white text-xs font-black">▲</button>
+                    <div />
+                    <button onClick={() => moveAvatar2D(-10, 0)} className="bg-slate-900 active:bg-sky-600 border border-slate-700 rounded-lg text-white text-xs font-black">◄</button>
+                    <button onClick={() => setAvatarPos({ x: 50, y: 50 })} className="bg-slate-950 border border-slate-800 rounded-lg text-slate-400 text-[10px] font-bold">●</button>
+                    <button onClick={() => moveAvatar2D(10, 0)} className="bg-slate-900 active:bg-sky-600 border border-slate-700 rounded-lg text-white text-xs font-black">►</button>
+                    <div />
+                    <button onClick={() => moveAvatar2D(0, 10)} className="bg-slate-900 active:bg-sky-600 border border-slate-700 rounded-lg text-white text-xs font-black">▼</button>
+                    <div />
+                  </div>
+                </div>
+
+                {/* SELECTED CLUB DETAIL CARD */}
+                {selectedClub && (
+                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl space-y-3 text-xs shadow-lg">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">{selectedClub.category}</span>
+                        <h3 className="font-black text-base sm:text-lg text-white">{selectedClub.name}</h3>
+                        <p className="text-xs text-slate-400">In-Charge: {selectedClub.officer} • Location: <span className="text-slate-200 font-semibold">{selectedClub.room}</span></p>
+                      </div>
+                      <span className="text-3xl">{selectedClub.icon}</span>
+                    </div>
+
+                    <p className="text-xs text-slate-300 leading-relaxed">{selectedClub.description}</p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-950 p-3 rounded-2xl border border-slate-800/80 text-[11px]">
+                      <div><span className="text-slate-500">Schedule:</span> <strong className="text-slate-200">{selectedClub.schedule}</strong></div>
+                      <div><span className="text-slate-500">Open Roles:</span> <strong className="text-emerald-400">{selectedClub.openPositions}</strong></div>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => setWayfindingTarget(selectedClub)}
+                        className="flex-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-2.5 rounded-xl text-xs shadow"
+                      >
+                        Draw Map Navigation Path
+                      </button>
+                      <button
+                        onClick={() => { setRegClub(selectedClub); setShowRegModal(true); }}
+                        className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs shadow"
+                      >
+                        {currentUser.role === 'teacher' ? 'Apply as Adviser' : 'Register to Join'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* TAB 2: BROWSE CLUBS SECTION */}
+            {studentTab === 'clubs' && (
+              <div className="space-y-4">
+                
+                {/* Search & Category Header */}
+                <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-3xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-black text-base text-white">Campus Club Directory</h3>
+                      <p className="text-xs text-slate-400">Explore all registered student organizations and join directly</p>
+                    </div>
+                    <span className="bg-sky-500/20 text-sky-400 font-extrabold text-xs px-3 py-1 rounded-full border border-sky-500/30">
+                      {filteredClubs.length} Active Clubs
+                    </span>
+                  </div>
+
+                  {/* Responsive Search Input */}
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="🔍 Search clubs by title, description, or interests..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  />
+
+                  {/* Category Filter Pills */}
+                  <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
+                    {['All', 'Tech & Engineering', 'Media & Arts', 'Spiritual & Outreach', 'Sports & Fitness'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setCategoryFilter(cat)}
+                        className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition ${
+                          categoryFilter === cat
+                            ? 'bg-amber-400 text-slate-950 shadow'
+                            : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Clubs Cards Grid (1-col on mobile, 2-col on PC) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredClubs.map(club => (
+                    <div
+                      key={club.id}
+                      className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-3xl space-y-3 flex flex-col justify-between transition shadow-lg"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center space-x-3">
+                            <span className="text-3xl">{club.icon}</span>
+                            <div>
+                              <span className="text-[10px] font-black text-amber-400 uppercase">{club.category}</span>
+                              <h4 className="font-extrabold text-white text-sm sm:text-base leading-snug">{club.name}</h4>
+                              <p className="text-[11px] text-slate-400">{club.room}</p>
+                            </div>
+                          </div>
+                          <span className="text-sky-400 font-extrabold font-mono text-xs shrink-0">{club.match} Fit</span>
+                        </div>
+
+                        <p className="text-xs text-slate-300 leading-relaxed">{club.description}</p>
+
+                        <div className="bg-slate-950 p-2.5 rounded-2xl border border-slate-800/80 text-[11px] space-y-1">
+                          <p className="text-slate-400">📅 Schedule: <span className="text-slate-200">{club.schedule}</span></p>
+                          <p className="text-slate-400">👤 Officer: <span className="text-slate-200">{club.officer}</span></p>
+                          {club.openPositions && (
+                            <p className="text-slate-400">⭐ Openings: <span className="text-emerald-400 font-semibold">{club.openPositions}</span></p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={() => setWayfindingTarget(club)}
+                          className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2 rounded-xl text-xs"
+                        >
+                          View Map
+                        </button>
+                        <button
+                          onClick={() => { setRegClub(club); setShowRegModal(true); }}
+                          className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs shadow"
+                        >
+                          {currentUser.role === 'teacher' ? 'Apply as Adviser' : 'Register to Join'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB 3: OFFICER APPROVALS MANAGEMENT */}
+            {studentTab === 'dashboard' && (
+              <div className="space-y-4">
+                <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider">Officer & Adviser Portal</span>
+                  <h3 className="font-extrabold text-base text-white">Pending Club Registrations</h3>
+                  <p className="text-xs text-slate-400">Review and approve or decline incoming membership requests.</p>
+                </div>
+
+                {registrations.length === 0 ? (
+                  <p className="text-slate-500 italic text-center py-12">No pending applications received yet.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {registrations.map(reg => (
+                      <div key={reg.id} className="bg-slate-900 p-5 rounded-3xl border border-slate-800 space-y-3">
+                        <div className="flex justify-between font-bold text-xs">
+                          <span className="text-white text-sm">{reg.applicantName}</span>
+                          <span className="text-amber-400">{reg.status}</span>
+                        </div>
+                        <p className="text-slate-400 text-xs">Identity: <strong className="text-sky-400">{reg.roleType}</strong> • {reg.studentId}</p>
+                        <p className="text-slate-300 text-xs">Club: <strong className="text-white">{reg.clubName}</strong></p>
+
+                        {reg.status === 'Pending' && (
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              onClick={() => reviewApplication(reg.id, 'Approved')}
+                              className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2 rounded-xl text-xs"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => reviewApplication(reg.id, 'Declined')}
+                              className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+
+        </div>
+      );
+
+      return (
+        <div className="flex-1 flex flex-col min-h-screen">
+
+          {/* TOP GLOBAL HEADER NAVBAR (PC & MOBILE RESPONSIVE) */}
+          <header className="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 sm:px-6 py-3">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              
+              {/* Brand Logo & Secret Override Tap Target */}
+              <div
+                onClick={handleSecretHeaderTap}
+                className="flex items-center space-x-3 cursor-pointer select-none"
+              >
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-400 to-amber-400 p-0.5 shadow-md flex items-center justify-center">
+                  <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center text-lg">
+                    ⚡
+                  </div>
+                </div>
+                <div>
+                  <h1 className="font-black text-base sm:text-lg text-white leading-none">
+                    Bump<span className="text-amber-400">Club</span> Web App
+                  </h1>
+                  <span className="text-[10px] text-slate-400 font-medium">La Verdad Christian College</span>
+                </div>
+              </div>
+
+              {/* User Identity Info & Actions */}
+              <div className="flex items-center space-x-3">
+
+                {/* View Frame Switcher (PC / Mobile Preview Toggle) */}
+                <div className="hidden sm:flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px] font-bold">
+                  <button
+                    onClick={() => setDeviceFrameMode('responsive')}
+                    className={`px-3 py-1 rounded-lg transition ${deviceFrameMode === 'responsive' ? 'bg-sky-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    🖥️ PC Web Mode
+                  </button>
+                  <button
+                    onClick={() => setDeviceFrameMode('mobile-mockup')}
+                    className={`px-3 py-1 rounded-lg transition ${deviceFrameMode === 'mobile-mockup' ? 'bg-amber-400 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    📱 Mobile View
+                  </button>
+                </div>
+
+                {/* AI Survey Matcher Button */}
+                {currentUser.role === 'student' && (
+                  <button
+                    onClick={() => { setShowSurvey(true); setSurveyStep(0); }}
+                    className="bg-slate-950 hover:bg-slate-800 text-amber-400 border border-slate-800 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center space-x-1"
+                  >
+                    <span>🎯</span>
+                    <span className="hidden sm:inline">AI Matcher</span>
+                  </button>
+                )}
+
+                {/* Back-Stage Control Room Toggle */}
+                {wizardUnlocked && (
+                  <button
+                    onClick={() => setViewMode(v => v === 'app' ? 'wizard' : 'app')}
+                    className={`text-xs font-black px-3 py-1.5 rounded-xl border transition ${
+                      viewMode === 'wizard' ? 'bg-amber-400 text-slate-950 border-amber-400' : 'bg-slate-950 text-amber-400 border-amber-400/50'
+                    }`}
+                  >
+                    ⚙️ Control Room
+                  </button>
+                )}
+
+                {/* User Identity Chip */}
+                <div className="hidden lg:flex items-center space-x-2 bg-slate-950 border border-slate-800 px-3 py-1 rounded-xl text-xs">
+                  <span>{currentUser.icon}</span>
+                  <span className="font-bold text-white">{currentUser.name}</span>
+                  <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${currentUser.badgeColor}`}>
+                    {currentUser.roleTitle}
+                  </span>
+                </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold px-3 py-1.5 rounded-xl transition"
+                >
+                  Log Out 🚪
+                </button>
+              </div>
+
+            </div>
+          </header>
+
+          {/* TOAST NOTIFICATION */}
+          {toastMsg && (
+            <div className="bg-amber-400 text-slate-950 px-4 py-2 text-xs font-black text-center shadow-lg">
+              {toastMsg}
+            </div>
+          )}
+
+          {/* BACK-STAGE CONTROL ROOM VIEW */}
+          {viewMode === 'wizard' && wizardUnlocked ? (
+            <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-6 flex-1">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6">
+                <div className="border-b border-slate-800 pb-4 flex justify-between items-start">
+                  <div>
+                    <span className="bg-amber-400/20 text-amber-400 border border-amber-400/30 text-[10px] font-black px-2.5 py-1 rounded-full uppercase">
+                      Wizard of Oz Back-Stage Engine
+                    </span>
+                    <h2 className="text-xl font-black text-white mt-1">Manual Fulfillment & Review Room</h2>
+                    <p className="text-xs text-slate-400">Operators manually approve student and teacher applications here behind the scenes.</p>
+                  </div>
+                  <button
+                    onClick={() => setViewMode('app')}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700"
+                  >
+                    Exit Control Room 🔒
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                    <h3 className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">
+                      Incoming Applications Queue ({registrations.filter(r => r.status === 'Pending').length})
+                    </h3>
+
+                    {registrations.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic py-4">No applications submitted yet.</p>
+                    ) : (
+                      registrations.map(reg => (
+                        <div key={reg.id} className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
+                          <div className="flex justify-between font-bold">
+                            <span className="text-white">{reg.applicantName} ({reg.studentId})</span>
+                            <span className="text-amber-400">{reg.status}</span>
+                          </div>
+                          <p className="text-slate-400 text-[11px]">Identity: <strong className="text-sky-400">{reg.roleType}</strong> • {reg.course}</p>
+                          <p className="text-slate-300 text-[11px]">Club: <strong className="text-white">{reg.clubName}</strong></p>
+
+                          {reg.status === 'Pending' && (
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                onClick={() => reviewApplication(reg.id, 'Approved')}
+                                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-1.5 rounded-lg text-[11px]"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => reviewApplication(reg.id, 'Declined')}
+                                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-[11px]"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                    <h3 className="text-xs font-extrabold text-sky-400 uppercase tracking-wider">
+                      Live Event Stream
+                    </h3>
+                    <div className="space-y-2 max-h-60 overflow-y-auto font-mono text-[11px]">
+                      {auditLogs.map(log => (
+                        <div key={log.id} className="p-2 rounded bg-slate-900/80 border border-slate-800/80 text-slate-300 flex justify-between">
+                          <span>{log.event}</span>
+                          <span className="text-slate-500 shrink-0 ml-2">{log.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+
+            /* FRONT-STAGE MAIN WEB APP (PC MODE OR MOBILE MOCKUP MODE) */
+            <div className="flex-1 flex flex-col">
+              
+              {deviceFrameMode === 'mobile-mockup' ? (
+                /* SIMULATED MOBILE PHONE VIEW MODE FOR DESKTOP PREVIEW */
+                <div className="py-6 flex items-center justify-center flex-1">
+                  <div className="max-w-md w-full bg-[#080d1a] border-4 border-slate-800 rounded-[40px] phone-shadow flex flex-col overflow-hidden relative min-h-[680px]">
+                    <div className="bg-[#0b1329] px-4 py-2 flex justify-between items-center text-[11px] text-slate-300 border-b border-slate-800/80">
+                      <span className="font-semibold text-slate-200">LVCC Campus Network</span>
+                      <span className="text-amber-400 font-bold font-mono">Mobile View</span>
+                    </div>
+                    {renderMainContent()}
+                  </div>
+                </div>
+              ) : (
+                /* FULL RESPONSIVE WEB APP MODE */
+                renderMainContent()
+              )}
+
+            </div>
+          )}
+
+          {/* FLOATING AI BOT ASSISTANT BUTTON & WINDOW */}
+          <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end space-y-3">
+            
+            {showChatBot && (
+              <div className="w-80 sm:w-96 bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl flex flex-col h-96 overflow-hidden mb-2">
+                
+                {/* Chat Header */}
+                <div className="bg-[#0b1329] p-3 border-b border-slate-800 flex justify-between items-center text-xs">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xl">🤖</span>
+                    <div>
+                      <h4 className="font-extrabold text-white text-xs">BumpClub AI Assistant</h4>
+                      <span className="text-[9px] text-emerald-400 font-semibold">● Online • Ask about clubs</span>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowChatBot(false)} className="text-slate-400 hover:text-white px-2 text-sm font-bold">✕</button>
+                </div>
+
+                {/* Message Stream */}
+                <div className="flex-1 p-3 overflow-y-auto space-y-2 text-xs">
+                  {chatMessages.map(msg => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] p-3 rounded-2xl leading-relaxed text-xs ${
+                          msg.sender === 'user'
+                            ? 'bg-amber-400 text-slate-950 font-medium rounded-br-none shadow'
+                            : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-bl-none shadow'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Chat Input Bar */}
+                <form onSubmit={handleSendMessage} className="p-2.5 bg-[#0b1329] border-t border-slate-800 flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    placeholder="Ask about clubs, rooms, schedule..."
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-3.5 py-2 rounded-xl text-xs shadow"
+                  >
+                    Send
+                  </button>
+                </form>
+
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowChatBot(prev => !prev)}
+              className="bg-gradient-to-r from-sky-400 to-amber-400 text-slate-950 font-black p-3.5 sm:px-5 sm:py-3 rounded-full shadow-2xl flex items-center space-x-2 active:scale-95 transition"
+            >
+              <span className="text-xl">🤖</span>
+              <span className="text-xs font-black pr-1 hidden sm:inline">Ask AI Assistant</span>
+            </button>
+          </div>
+
+          {/* SECRET OPERATOR OVERRIDE MODAL */}
+          {showPasscodeModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-800 w-full max-w-xs rounded-3xl p-5 space-y-4 shadow-2xl">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[10px] font-black text-amber-400 uppercase">Secret Override</span>
+                    <h3 className="font-black text-base text-white">Operator Code</h3>
+                  </div>
+                  <button onClick={() => setShowPasscodeModal(false)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <form onSubmit={handlePasscodeSubmit} className="space-y-3 text-xs">
+                  <div>
+                    <label className="text-slate-400 font-bold block mb-1">Passcode (Enter: 1010)</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••"
+                      value={passcode}
+                      onChange={e => setPasscode(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-center text-amber-400 font-mono tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-2.5 rounded-xl shadow-lg"
+                  >
+                    Authorize Control Room
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* REGISTRATION APPLICATION FORM MODAL */}
+          {showRegModal && regClub && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[10px] font-black text-amber-400 uppercase">Application Form</span>
+                    <h3 className="font-black text-base text-white">Join {regClub.name}</h3>
+                  </div>
+                  <button onClick={() => setShowRegModal(false)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <form onSubmit={submitRegForm} className="space-y-3 text-xs">
+                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                    <p className="text-slate-400 text-xs">Applying as: <strong className="text-white">{currentUser.name}</strong></p>
+                    <p className="text-slate-400 text-xs">Role: <strong className="text-amber-400">{currentUser.roleTitle}</strong></p>
+                    <p className="text-slate-400 text-xs">ID Number: <strong className="text-white">{currentUser.idNumber}</strong></p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black py-3 rounded-xl shadow-lg mt-2"
+                  >
+                    Confirm & Submit Application
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
